@@ -91,7 +91,7 @@ for file in path:
         permutation = np.random.permutation(data.shape[0])
         shuffled_dataset = data[permutation, :]
         shuffled_labels = label[permutation, :]
-        print i, shuffled_dataset.shape, shuffled_labels.shape
+        print(i, shuffled_dataset.shape, shuffled_labels.shape)
         np.save(output_data_dir + str(i), shuffled_dataset)
         np.save(output_label_dir + str(i), shuffled_labels)
         data = None
@@ -102,7 +102,7 @@ if i % shuffle_batch != 0:
     permutation = np.random.permutation(data.shape[0])
     shuffled_dataset = data[permutation, :]
     shuffled_labels = label[permutation, :]
-    print i, shuffled_dataset.shape, shuffled_labels.shape
+    print(i, shuffled_dataset.shape, shuffled_labels.shape)
     np.save(output_data_dir + str(i), shuffled_dataset)
     np.save(output_label_dir + str(i), shuffled_labels)
 

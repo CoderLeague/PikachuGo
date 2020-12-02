@@ -53,14 +53,14 @@ for file in path:
         data = n_data
         label = n_label
         first = False
-    print i
+    print(i)
     i += 1
     if i % 10 == 0:
         permutation = np.random.permutation(data.shape[0])
         shuffled_dataset = data[permutation, :]
         shuffled_labels = label[permutation, :]
-        print shuffled_dataset.shape
-        print shuffled_labels.shape
+        print(shuffled_dataset.shape)
+        print(shuffled_labels.shape)
         np.save('E:/value_shuffle_2/' + str(i), shuffled_dataset)
         np.save('E:/value_shuffle_label_2/' + str(i), shuffled_labels)
         data = None
@@ -70,8 +70,8 @@ for file in path:
 permutation = np.random.permutation(data.shape[0])
 shuffled_dataset = data[permutation, :]
 shuffled_labels = label[permutation, :]
-print shuffled_dataset.shape
-print shuffled_labels.shape
+print(shuffled_dataset.shape)
+print(shuffled_labels.shape)
 np.save('E:/value_shuffle_2/' + str(i), shuffled_dataset)
 np.save('E:/value_shuffle_label_2/' + str(i), shuffled_labels)
 

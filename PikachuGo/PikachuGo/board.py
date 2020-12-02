@@ -730,11 +730,11 @@ class Go(object):
         for i in range(19):
             for j in range(19):
                 if self.board[i][j] == EMPTY_STONE:
-                    print '.',
+                    print('.', end="")
                 elif self.board[i][j] == BLACK_STONE:
-                    print 'x',
+                    print('x',end="")
                 else:
-                    print 'o',
+                    print('o',end="")
             print
 
     def _dfs(self, board, posx, posy, current_stone):

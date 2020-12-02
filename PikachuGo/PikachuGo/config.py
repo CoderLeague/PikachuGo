@@ -6,7 +6,7 @@ PikachuGo的配置项
 """
 PikachuGo的根目录
 """
-root_dir            = "E:/PikachuGo/"
+root_dir            = "/disk2/wangyulong/GameGo/PikachuGo/PikachuGo/PikachuGo/PikachuGo/"
 """
 策略网络的位置
 """

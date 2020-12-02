@@ -18,6 +18,14 @@ import math
 import random
 import go_plot
 import config
+import queue
+import threading
+import time
+
+from ws4py.websocket import WebSocket
+from ws4py.server.geventserver import WSGIServer
+from ws4py.server.wsgiutils import WebSocketWSGIApplication
+from server import CalllbackWebSocket
 
 
 ROLLOUTS = config.search_times_ucb
@@ -43,7 +51,7 @@ go = board.Go()
 debug_print用来在console中进行人机交互
 """
 def debug_print(args):
-    print >> sys.stderr, args
+    print(args)
     sys.stderr.flush()
     return
 
@@ -76,25 +84,25 @@ f_module = mx.mod.Module(symbol=f_sym, label_names=['soft_label'], data_names=['
 
 
 """
-使用蒙特卡洛方法，运用fast_rollout policy network，进行预测
+使用蒙特卡洛方法，运用 fast_rollout policy network，进行预测
+快速走子完成一个棋局。快速走子不能超过 DEPTH 步
 """
-
 def monte_carlo_simulate(go):
     global first_run_3
-    feature = go.generate_fast()
+    feature = go.generate_fast() # np.zeros((1, 8, 19, 19)
     iter = mx.io.NDArrayIter(data=feature)
     if first_run_3:
+        # 第一次执行到这里进行初始化
         f_module.bind(data_shapes=iter.provide_data)
         f_module.set_params(f_arg_params, f_aux_params)
         first_run_3 = False
-    pred = f_module.predict(iter).asnumpy()
+    pred = f_module.predict(iter).asnumpy() # np.zeros((19, 19)
     """
     快速走子网络
     排下序
-    
     """
     out = np.argsort(-pred)
-    go.place_stone_num(out[0][0])
+    go.place_stone_num(out[0][0]) # 落子
     depth = DEPTH - go.round + 1
     if depth > config.serach_ucb_limit:
         depth = config.serach_ucb_limit
@@ -108,7 +116,7 @@ def monte_carlo_simulate(go):
         pred = f_module.predict(iter).asnumpy()
         # rd = np.random.rand(1, 361) * 0.13
         # pred = pred + rd
-        out = np.argsort(-pred)
+        out = np.argsort(-pred) # 将矩阵a按照axis排序，并返回排序后的下标
         rd_num = random.random()
         """
         此处表示取最优/取次优的探索几率
@@ -132,35 +140,25 @@ def monte_carlo_simulate(go):
 
 
 """
-
 make_prediction()
-
 gtp.py中最重要的函数
-
-
-
-
 """
-
 def make_prediction():
     global go, first_run, first_run_2
 
     """
     第一步：
-            先对盘面生成特征：这是一个16通道的特征。
-            使用策略网络（也可能是RL网络）
-            
+    先对盘面生成特征：这是一个16通道的特征。
+    使用策略网络（也可能是RL网络）    
     """
     feature = go.generate()
     """
-    
-            用iter喂数据给神经网络
-            
+    用iter喂数据给神经网络      
     """
     iter = mx.io.NDArrayIter(data=feature)
 
     """
-            如果是第一次运行，则绑定模型，并设置参数
+    如果是第一次运行，则绑定模型，并设置参数
     """
 
     if first_run:
@@ -412,29 +410,19 @@ def make_prediction():
     return out[0][max_index]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 """
 gtp协议的输入和输出
 """
-def gtp_io():
+def gtp_play():
     global board
     PASS_FLAG = 0
-    known_commands = ['boardsize', 'clear_board', 'komi', 'play', 'genmove', 'quit',
-                      'name', 'version', 'known_command', 'list_commands', 'protocal_version']
+    known_commands = [
+        'boardsize', 'clear_board', 'komi', 'play', 'genmove', 'quit',
+        'name', 'version', 'known_command', 'list_commands', 'protocal_version']
+
     while True:
         try:
-            line = raw_input().strip()
+            line = input().strip()
         except EOFError:
             break
 
@@ -467,9 +455,7 @@ def gtp_io():
                 # print command[2]
                 go.place_stone_num(util.gtppos_to_num(command[2].upper()))
         elif command[0] == 'genmove':
-
             move = -1
-
             if PASS_FLAG == 1:
                 PASS_FLAG = 0
                 move = -1
@@ -493,22 +479,118 @@ def gtp_io():
         elif command[0] == 'protocol_version':
             ret = '2'
         elif command[0] == 'quit':
-            print '=%s \n\n' % (cmdid, ),
+            print('=%s \n\n' % (cmdid, ))
             exit(0)
         else:
             debug_print("Unknown Command! ")
             ret = None
 
         if ret is not None:
-            print '=%s %s\n\n' % (cmdid, ret),
+            print('=%s %s\n\n' % (cmdid, ret))
         else:
-            print '?%s ???\n\n' % (cmdid, ),
+            print('?%s ???\n\n' % (cmdid, ))
         sys.stdout.flush()
 
 
+"""
+gtp协议的输入和输出
+"""
+def gtp_ws_play():
+    global board
+    PASS_FLAG = 0
+    known_commands = [
+        'boardsize', 'clear_board', 'komi', 'play', 'genmove', 'quit',
+        'name', 'version', 'known_command', 'list_commands', 'protocal_version']
+
+    ws_receive_queue = queue.Queue()
+    def ws_callback(self_place, byte_data, is_bin):
+        data = str(byte_data,encoding="utf-8")
+        ws_receive_queue.put(data)
+
+    app = WebSocketWSGIApplication(handler_cls=CalllbackWebSocket)
+    app.handler_cls.callback_fun  = ws_callback
+    server = WSGIServer(('10.105.137.57', 8021), app)
+    td = threading.Thread(target=server.serve_forever)
+    td.start()
+
+    while True:
+        try:
+            line = ws_receive_queue.get()
+        except EOFError:
+            break
+
+        if line == '' or line == None:
+            time.sleep(1)
+            continue
+
+        print("receive:", line)
+        command = [s.lower() for s in line.split()]
+        if re.match('\d+', command[0]):
+            cmdid = command[0]
+            command = command[1: ]
+        else:
+            cmdid = ''
+        ret = ''
+
+        if command[0] == 'boardsize':
+            debug_print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], 19))
+            ret = None
+        elif command[0] == 'clear_board':
+            board = board.Go()
+        elif command[0] == 'komi':
+            pass
+        elif command[0] == 'play':
+            if command[2].upper() == 'PASS':
+                go.place_stone_num(-1)
+                PASS_FLAG = 1
+
+            if command[1].upper() == 'B':# and board.current_player == BLACK:
+                # print command[2]
+                go.place_stone_num(util.gtppos_to_num(command[2].upper()))
+            elif command[1].upper() == 'W':# and board.current_player == WHITE:
+                # print command[2]
+                go.place_stone_num(util.gtppos_to_num(command[2].upper()))
+        elif command[0] == 'genmove':
+            move = -1
+            if PASS_FLAG == 1:
+                PASS_FLAG = 0
+                move = -1
+                ret = 'pass'
+            else:
+                move = make_prediction()
+                if move is None:
+                    ret = 'pass'
+                if move == -1:
+                    ret = 'resign'
+                else:
+                    ret = util.pos_to_gtppos(util.num_to_pos(move))
+            go.place_stone_num(move)
+        elif command[0] == 'name':
+            ret = 'PikachuP, 2018'
+        elif command[0] == 'version':
+            ret = '0.2'
+        elif command[0] == 'list_commands':
+            ret = '\n'.join(known_commands)
+        elif command[0] == 'protocol_version':
+            ret = '2'
+        elif command[0] == 'quit':
+            print('%s \n\n' % (cmdid, ))
+            exit(0)
+        else:
+            debug_print("Unknown Command! ")
+            ret = None
+
+        if ret is not None:
+            response_str = '%s %s' % (cmdid, ret)
+            app.handler_cls.response_q.put(response_str)
+        else:
+            response_str = '?%s ???' % (cmdid, )
+            app.handler_cls.response_q.put(response_str)
+    td.join()
 
 def main():
-    gtp_io()
+    # gtp_play()
+    gtp_ws_play()
 
 if __name__=="__main__":
     main()

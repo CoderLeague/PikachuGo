@@ -42,7 +42,7 @@ r3 = re.compile(r_b)
 
 path = os.listdir(root_dir)
 for file in path:
-    print file
+    print(file)
     str_ = ''
     fp = open(root_dir + file)
     content = fp.read()

@@ -50,4 +50,4 @@ print label[7]
 label_data = np.random.rand(19, 361)
 label_data = label_data.reshape(-1, 361)
 label_data = np.argmax(label_data, axis=1)
-print label_data.shape
+print(label_data.shape)

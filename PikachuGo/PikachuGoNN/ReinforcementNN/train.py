@@ -123,7 +123,7 @@ class MyDataIter(DataIter):
                 feature = go.generate()
                 iter = mx.io.NDArrayIter(data=feature)
                 res = self.module.predict(iter).asnumpy()
-                print res
+                print( res )
 
 
 

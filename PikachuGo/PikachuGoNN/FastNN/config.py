@@ -10,6 +10,8 @@ auto_turn = 'fastest'                   # 使用四最快的卷积算法
 model_directory = 'model'
 model_prefix = model_directory + '/model'
 
+BOARD_SIZE = 9                         # 快速走子游戏的棋盘大小
+
 n_epoch_load = 0                       # 从哪里开始训练
 
 apply_symmetry = True                   # 使用棋盘对称
